@@ -32,15 +32,8 @@ class BackupNotifier(private val context: Context) {
     private val backupRestoreStatus: BackupRestoreStatus = Injekt.get()
     // KMK <--
 
-    private val progressNotificationBuilder = context.notificationBuilder(
-        Notifications.CHANNEL_BACKUP_RESTORE_PROGRESS,
-    ) {
-        setSmallIcon(R.drawable.ic_komikku)
-        setColor(ContextCompat.getColor(context, R.color.ic_launcher))
-        setLargeIcon(BitmapFactory.decodeResource(context.resources, R.drawable.komikku))
-        setAutoCancel(false)
-        setOngoing(true)
-        setOnlyAlertOnce(true)
+    private val largeIcon by lazy {
+        BitmapFactory.decodeResource(context.resources, R.drawable.komikku)
     }
 
     private val completeNotificationBuilder = context.notificationBuilder(
