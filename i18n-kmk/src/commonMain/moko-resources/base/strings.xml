@@ -99,6 +99,9 @@
     <string name="extensions_page_more">More extensions...</string>
     <!-- Extension repos -->
       <!-- Downloads section -->
+    <string name="download_threads">Download threads</string>
+    <string name="download_slots">Concurrent downloads</string>
+    <string name="downloads_per_source">Downloads per source</string>
     <string name="download_cache_renew_interval">Download cache renew interval</string>
     <string name="download_cache_renew_interval_manual">Manual</string>
     <string name="download_cache_renew_interval_1hour">1 hour</string>
@@ -152,7 +155,7 @@
     <string name="manual_download">Manual download</string>
     <!-- Browse settings -->
     <string name="pref_source_related_mangas">Suggestions</string>
-    <string name="pref_source_related_mangas_summary">Show source-website's Suggestions while viewing entry</string>
+    <string name="pref_source_related_mangas_summary">Show source-website\'s Suggestions while viewing entry</string>
     <string name="related_mangas_website_suggestions">Website Suggestions</string>
     <string name="related_mangas_more">More like these...</string>
     <string name="saved_searches_add_feed">Saved Searches (Hold to add to Feed)</string>

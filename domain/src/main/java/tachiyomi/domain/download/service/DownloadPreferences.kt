@@ -38,6 +38,10 @@ class DownloadPreferences(
     fun downloadNewUnreadChaptersOnly() = preferenceStore.getBoolean("download_new_unread_chapters_only", false)
 
     // KMK -->
+    fun numberOfDownloads() = preferenceStore.getInt("download_slots", 10)
+
+    fun downloadsPerSource() = preferenceStore.getInt("downloads_per_source", 5)
+
     fun downloadCacheRenewInterval() = preferenceStore.getInt("download_cache_renew_interval", 1)
     // KMK <--
 

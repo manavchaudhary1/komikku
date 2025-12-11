@@ -40,6 +40,7 @@ object SettingsDownloadScreen : SearchableSettings {
 
         val downloadPreferences = remember { Injekt.get<DownloadPreferences>() }
         return listOf(
+            getDownloadThreadsGroup(downloadPreferences = downloadPreferences),
             Preference.PreferenceItem.SwitchPreference(
                 preference = downloadPreferences.downloadOnlyOverWifi(),
                 title = stringResource(MR.strings.connected_to_wifi),
@@ -65,6 +66,27 @@ object SettingsDownloadScreen : SearchableSettings {
             // KMK -->
             getDownloadCacheRenewInterval(downloadPreferences = downloadPreferences),
             // KMK <--
+        )
+    }
+
+    @Composable
+    private fun getDownloadThreadsGroup(
+        downloadPreferences: DownloadPreferences,
+    ): Preference.PreferenceGroup {
+        return Preference.PreferenceGroup(
+            title = stringResource(KMR.strings.download_threads),
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.ListPreference(
+                    preference = downloadPreferences.numberOfDownloads(),
+                    title = stringResource(KMR.strings.download_slots),
+                    entries = (1..5).associateWith { it.toString() }.toImmutableMap(),
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = downloadPreferences.downloadsPerSource(),
+                    title = stringResource(KMR.strings.downloads_per_source),
+                    entries = (1..3).associateWith { it.toString() }.toImmutableMap(),
+                ),
+            ),
         )
     }
 
