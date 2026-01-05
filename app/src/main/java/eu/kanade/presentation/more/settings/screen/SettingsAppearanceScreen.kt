@@ -27,6 +27,7 @@ import eu.kanade.presentation.more.settings.widget.AppThemePreferenceWidget
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableMap
+import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.i18n.sy.SYMR
@@ -342,6 +343,11 @@ object SettingsAppearanceScreen : SearchableSettings {
                 Preference.PreferenceItem.SwitchPreference(
                     preference = uiPreferences.bottomBarLabels(),
                     title = stringResource(SYMR.strings.pref_show_bottom_bar_labels),
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = Injekt.get<LibraryPreferences>().floatingBlurNavbar(),
+                    title = stringResource(KMR.strings.pref_floating_blur_navbar),
+                    subtitle = stringResource(KMR.strings.pref_floating_blur_navbar_summary),
                 ),
             ),
         )
