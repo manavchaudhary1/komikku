@@ -42,6 +42,8 @@ class LibraryPreferences(
         Preference.appStateKey("pref_show_updating_progress_banner_key"),
         true,
     )
+
+    fun floatingBlurNavbar() = preferenceStore.getBoolean("floating_blur_navbar", false)
     // KMK <--
 
     fun coverRatios() = preferenceStore.getStringSet(
