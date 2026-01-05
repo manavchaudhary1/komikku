@@ -4,9 +4,19 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.graphics.res.animatedVectorResource
 import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
 import androidx.compose.animation.graphics.vector.AnimatedImageVector
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -17,10 +27,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastAll
 import androidx.compose.ui.util.fastAny
 import cafe.adriel.voyager.core.model.rememberScreenModel
@@ -73,6 +86,7 @@ import tachiyomi.domain.UnsortedPreferences
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.library.model.LibraryGroup
 import tachiyomi.domain.library.model.LibraryManga
+import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
@@ -82,6 +96,7 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.EmptyScreenAction
 import tachiyomi.presentation.core.screens.LoadingScreen
+import tachiyomi.presentation.core.util.collectAsState
 import tachiyomi.source.local.isLocal
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -116,6 +131,13 @@ data object LibraryTab : Tab {
         val settingsScreenModel = rememberScreenModel { LibrarySettingsScreenModel() }
         val state by screenModel.state.collectAsState()
 
+        // KMK -->
+        val libraryPreferences = remember { Injekt.get<LibraryPreferences>() }
+        val floatingBlurNavbar by libraryPreferences.floatingBlurNavbar().collectAsState()
+        LaunchedEffect(floatingBlurNavbar) {
+            android.util.Log.d("LibraryTab", "floatingBlurNavbar: $floatingBlurNavbar")
+        }
+        // KMK <--
         val snackbarHostState = remember { SnackbarHostState() }
 
         val onClickRefresh: (Category?) -> Boolean = { category ->
@@ -194,90 +216,127 @@ data object LibraryTab : Tab {
                 )
             },
             bottomBar = {
-                LibraryBottomActionMenu(
-                    visible = state.selectionMode,
-                    onChangeCategoryClicked = screenModel::openChangeCategoryDialog,
-                    onMarkAsReadClicked = { screenModel.markReadSelection(true) },
-                    onMarkAsUnreadClicked = { screenModel.markReadSelection(false) },
-                    onDownloadClicked = screenModel::performDownloadAction
-                        .takeIf { state.selectedManga.fastAll { !it.isLocal() } },
-                    onDeleteClicked = screenModel::openDeleteMangaDialog,
-                    // SY -->
-                    onClickCleanTitles = screenModel::cleanTitles.takeIf { state.showCleanTitles },
-                    onClickMigrate = {
-                        val selectedMangaIds = state.selectedManga
-                            .filterNot { it.source == MERGED_SOURCE_ID }
-                            .map { it.id }
-                        screenModel.clearSelection()
-                        if (selectedMangaIds.isNotEmpty()) {
-                            PreMigrationScreen.navigateToMigration(
-                                Injekt.get<UnsortedPreferences>().skipPreMigration().get(),
-                                navigator,
-                                selectedMangaIds,
-                            )
-                        } else {
-                            context.toast(SYMR.strings.no_valid_entry)
-                        }
-                    },
-                    onClickCollectRecommendations = screenModel::showRecommendationSearchDialog.takeIf { state.selection.size > 1 },
-                    onClickAddToMangaDex = screenModel::syncMangaToDex.takeIf { state.showAddToMangadex },
-                    onClickResetInfo = screenModel::resetInfo.takeIf { state.showResetInfo },
-                    // SY <--
-                    // KMK -->
-                    onClickMerge = {
-                        if (state.selection.size == 1) {
-                            val manga = state.selectedManga.first()
-                            // Invoke merging for this manga
+                android.util.Log.d("LibraryTab", "bottomBar - floatingBlurNavbar: $floatingBlurNavbar, selectionMode: ${state.selectionMode}")
+                val bottomActionMenu = @Composable {
+                    LibraryBottomActionMenu(
+                        visible = state.selectionMode,
+                        onChangeCategoryClicked = screenModel::openChangeCategoryDialog,
+                        onMarkAsReadClicked = { screenModel.markReadSelection(true) },
+                        onMarkAsUnreadClicked = { screenModel.markReadSelection(false) },
+                        onDownloadClicked = screenModel::performDownloadAction
+                            .takeIf { state.selectedManga.fastAll { !it.isLocal() } },
+                        onDeleteClicked = screenModel::openDeleteMangaDialog,
+                        onClickCleanTitles = screenModel::cleanTitles.takeIf { state.showCleanTitles },
+                        onClickMigrate = {
+                            val selectedMangaIds = state.selectedManga
+                                .filterNot { it.source == MERGED_SOURCE_ID }
+                                .map { it.id }
                             screenModel.clearSelection()
-                            val smartSearchConfig = SourcesScreen.SmartSearchConfig(manga.title, manga.id)
-                            navigator.push(SourcesScreen(smartSearchConfig))
-                        } else if (state.selection.isNotEmpty()) {
-                            // Invoke multiple merge
-                            val selectedManga = state.selectedManga
-                            screenModel.clearSelection()
-                            scope.launchIO {
-                                val mergingMangas = selectedManga.filterNot { it.source == MERGED_SOURCE_ID }
-                                val mergedMangaId = screenModel.smartSearchMerge(selectedManga.toPersistentList())
-                                snackbarHostState.showSnackbar(context.stringResource(SYMR.strings.entry_merged))
-                                if (mergedMangaId != null) {
-                                    val result = snackbarHostState.showSnackbar(
-                                        message = context.stringResource(KMR.strings.action_remove_merged),
-                                        actionLabel = context.stringResource(MR.strings.action_remove),
-                                        withDismissAction = true,
-                                    )
-                                    if (result == SnackbarResult.ActionPerformed) {
-                                        screenModel.removeMangas(
-                                            mangas = mergingMangas,
-                                            deleteFromLibrary = true,
-                                            deleteChapters = false,
-                                        )
-                                    }
-                                    navigator.push(MangaScreen(mergedMangaId))
-                                } else {
-                                    snackbarHostState.showSnackbar(context.stringResource(SYMR.strings.merged_references_invalid))
-                                }
-                            }
-                        } else {
-                            screenModel.clearSelection()
-                            context.toast(SYMR.strings.no_valid_entry)
-                        }
-                    },
-                    onClickRefreshSelected = {
-                        val started = screenModel.refreshSelectedManga()
-                        scope.launch {
-                            val msgRes = if (started) {
-                                KMR.strings.updating
+                            if (selectedMangaIds.isNotEmpty()) {
+                                PreMigrationScreen.navigateToMigration(
+                                    Injekt.get<UnsortedPreferences>().skipPreMigration().get(),
+                                    navigator,
+                                    selectedMangaIds,
+                                )
                             } else {
-                                MR.strings.update_already_running
+                                context.toast(SYMR.strings.no_valid_entry)
                             }
-                            if (started) {
+                        },
+                        onClickCollectRecommendations = screenModel::showRecommendationSearchDialog.takeIf { state.selection.size > 1 },
+                        onClickAddToMangaDex = screenModel::syncMangaToDex.takeIf { state.showAddToMangadex },
+                        onClickResetInfo = screenModel::resetInfo.takeIf { state.showResetInfo },
+                        onClickMerge = {
+                            if (state.selection.size == 1) {
+                                val manga = state.selectedManga.first()
                                 screenModel.clearSelection()
+                                val smartSearchConfig = SourcesScreen.SmartSearchConfig(manga.title, manga.id)
+                                navigator.push(SourcesScreen(smartSearchConfig))
+                            } else if (state.selection.isNotEmpty()) {
+                                val selectedManga = state.selectedManga
+                                screenModel.clearSelection()
+                                scope.launchIO {
+                                    val mergingMangas = selectedManga.filterNot { it.source == MERGED_SOURCE_ID }
+                                    val mergedMangaId = screenModel.smartSearchMerge(selectedManga.toPersistentList())
+                                    snackbarHostState.showSnackbar(context.stringResource(SYMR.strings.entry_merged))
+                                    if (mergedMangaId != null) {
+                                        val result = snackbarHostState.showSnackbar(
+                                            message = context.stringResource(KMR.strings.action_remove_merged),
+                                            actionLabel = context.stringResource(MR.strings.action_remove),
+                                            withDismissAction = true,
+                                        )
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            screenModel.removeMangas(
+                                                mangas = mergingMangas,
+                                                deleteFromLibrary = true,
+                                                deleteChapters = false,
+                                            )
+                                        }
+                                        navigator.push(MangaScreen(mergedMangaId))
+                                    } else {
+                                        snackbarHostState.showSnackbar(context.stringResource(SYMR.strings.merged_references_invalid))
+                                    }
+                                }
+                            } else {
+                                screenModel.clearSelection()
+                                context.toast(SYMR.strings.no_valid_entry)
                             }
-                            snackbarHostState.showSnackbar(context.stringResource(msgRes))
+                        },
+                        onClickRefreshSelected = {
+                            val started = screenModel.refreshSelectedManga()
+                            scope.launch {
+                                val msgRes = if (started) {
+                                    KMR.strings.updating
+                                } else {
+                                    MR.strings.update_already_running
+                                }
+                                if (started) {
+                                    screenModel.clearSelection()
+                                }
+                                snackbarHostState.showSnackbar(context.stringResource(msgRes))
+                            }
+                        },
+                    )
+                }
+
+                if (floatingBlurNavbar) {
+                    android.util.Log.d("LibraryTab", "Rendering FLOATING blur navbar")
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .padding(
+                                WindowInsets.navigationBars
+                                    .only(WindowInsetsSides.Bottom)
+                                    .asPaddingValues()
+                            )
+                            .padding(bottom = 8.dp)
+                    ) {
+                        // 🔹 Background blur layer
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.75f)
+                                )
+
+                                .blur(16.dp)
+                        )
+
+                        // 🔹 Foreground content (NO blur)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(24.dp))
+                        ) {
+                            bottomActionMenu()
                         }
-                    },
-                    // KMK <--
-                )
+                    }
+                } else {
+                    android.util.Log.d("LibraryTab", "Rendering NORMAL navbar")
+                    bottomActionMenu()
+                }
             },
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         ) { contentPadding ->
